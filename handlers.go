@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/coder/websocket"
 	"github.com/gitnoober/chat-go/service"
 )
 
@@ -54,7 +58,7 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 
 }
 
-func handleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
+func HandleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	switch requestType := r.Method; requestType {
 	case http.MethodPost:
 		log.Print("Inside POST method")
@@ -64,5 +68,71 @@ func handleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		getUser(w, r, svc)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+
+// Handle incoming websocket connections
+func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
+	tokenString := r.URL.Query().Get("token")
+	// Log the connection request
+	log.Printf("Received WebSocket connection request with token: %s", tokenString)
+
+	// claims, err := validateJWT(tokenString)
+	claims, err := validateTestJWT(tokenString)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := websocket.Accept(w, r, nil)
+	if err != nil {
+		log.Printf("Websocket connection err: %v", err)
+		return
+	}
+
+	clientID := claims["sub"].(string)
+	client := &Client{
+		ID:   clientID,
+		Conn: conn,
+	}
+	pool.AddClient(client)
+
+	defer pool.RemoveClient(clientID)
+
+	log.Printf("Client connected: %s", clientID)
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
+		defer cancel()
+
+		// Read the message from the client
+		_, reader, err := conn.Reader(ctx)
+		if err != nil {
+			log.Printf("Read Error: $%v", err)
+			break
+		}
+
+		// Read the entire message from the io.Reader
+		message, err := io.ReadAll(reader)
+		if err != nil {
+			log.Printf("Error reading message: %v", err)
+			break
+		}
+
+		// log.Println("Received message:", string(message))
+
+		// Assume the message format is "receiverID:message"
+		parts := splitMessage(string(message))
+		if len(parts) != 2 {
+			log.Println("Invalid message format")
+			continue
+		}
+		receiverID, msg := parts[0], parts[1]
+
+		// Send the message to the intended recipient
+		if err := pool.SendMessage(receiverID, msg); err != nil {
+			log.Printf("Send message error: %v", err)
+		}
 	}
 }
