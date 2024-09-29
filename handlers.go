@@ -39,7 +39,14 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userID := r.URL.Query().Get("id")
+	tokenString := r.URL.Query().Get("token")
+	claims, err := validateTestJWT(tokenString)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := claims["sub"].(string)
 
 	if userID == "" {
 		http.Error(w, "Missing user ID", http.StatusBadRequest)
@@ -58,6 +65,51 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 
 }
 
+func getAllActiveConn(pool *Pool, w http.ResponseWriter, svc *service.Service) {
+	pool.mu.Lock()
+
+	ids := make([]string, 0, len(pool.clients))
+	for id := range pool.clients {
+		ids = append(ids, id)
+	}
+	pool.mu.Unlock()
+
+	userList := make([]service.User, 0, len(ids))
+
+	for _, id := range ids {
+		user, err := svc.GetUserByID(id)
+		if err != nil {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		userList = append(userList, *user)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(userList)
+}
+
+func HandleGetAllActiveConn(pool *Pool, w http.ResponseWriter, r *http.Request, svc *service.Service) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	tokenString := r.URL.Query().Get("token")
+	claims, err := validateTestJWT(tokenString)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := claims["sub"].(string)
+
+	if userID == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+	getAllActiveConn(pool, w, svc)
+}
+
 func HandleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	switch requestType := r.Method; requestType {
 	case http.MethodPost:
@@ -70,7 +122,6 @@ func HandleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
-
 
 // Handle incoming websocket connections
 func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
