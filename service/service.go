@@ -64,3 +64,18 @@ func (s *Service) GetUserByID(userID int) (*User, error) {
 
 	return &user, nil
 }
+
+func (s *Service) GetUserByEmail(email string) (int, error) {
+	query := "SELECT id FROM users WHERE email = ?"
+	row := s.mysqlDB.QueryRow(query, email)
+
+	var UserID int
+	err := row.Scan(&UserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("user not found")
+		}
+		return 0, fmt.Errorf("error retrieving user: %v", err)
+	}
+	return UserID, nil
+}

@@ -30,21 +30,15 @@ func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		return
 	}
 
-	stringUserID := user.ID
-	intUserID, err := strconv.Atoi(stringUserID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	token, err := generateToken(intUserID)
+	userID, err := svc.GetUserByEmail(user.Email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"token": token})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"userID": userID})
 
 }
 
@@ -54,12 +48,15 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		return
 	}
 	tokenString := r.Header.Get("Authorization")
-	claims, err := validateTestJWT(tokenString)
+	log.Printf("Token: %s", tokenString)
+	claims, err := validateJWT(tokenString)
+	log.Printf("Claims: %v", claims)
+	log.Printf("Error: %v", err)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	userID := claims["sub"].(int)
+	userID := int(claims["sub"].(float64))
 	log.Printf("User ID: %d", userID)
 
 	// Get user from service
@@ -71,25 +68,27 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
-
 }
 
 func getAllActiveConn(pool *Pool, w http.ResponseWriter, svc *service.Service) {
 	pool.mu.Lock()
+	defer pool.mu.Unlock()
 
-	ids := make([]int, 0, len(pool.clients))
+	ids := make([]string, 0, len(pool.clients))
 	for id := range pool.clients {
-		i, err := strconv.Atoi(id)
-		if err != nil {
-			ids = append(ids, i)
-		}
+		ids = append(ids, id)
 	}
-	pool.mu.Unlock()
+	log.Printf("ids: %v", ids)
 
 	userList := make([]service.User, 0, len(ids))
 
 	for _, id := range ids {
-		user, err := svc.GetUserByID(id)
+		userID, err := strconv.Atoi(id)
+		if err != nil {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			continue
+		}
+		user, err := svc.GetUserByID(userID)
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -107,18 +106,12 @@ func HandleGetAllActiveConn(pool *Pool, w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	tokenString := r.Header.Get("Authorization")
-	claims, err := validateTestJWT(tokenString)
+	_, err := validateJWT(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	userID := claims["sub"].(string)
-
-	if userID == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
-		return
-	}
+	log.Printf("pool: %v", pool)
 	getAllActiveConn(pool, w, svc)
 }
 
@@ -137,12 +130,12 @@ func HandleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 
 // Handle incoming websocket connections
 func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
-	tokenString := r.Header.Get("Authorization")
+	tokenString := r.URL.Query().Get("token")
 	// Log the connection request
 	log.Printf("Received WebSocket connection request with token: %s", tokenString)
 
 	// claims, err := validateJWT(tokenString)
-	claims, err := validateTestJWT(tokenString)
+	claims, err := validateJWT(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -154,12 +147,15 @@ func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID := claims["sub"].(string)
+	ID := claims["sub"].(float64)
+	clientID := strconv.Itoa(int(ID))
 	client := &Client{
 		ID:   clientID,
 		Conn: conn,
 	}
 	pool.AddClient(client)
+
+	log.Printf("Client added to pool: %v", pool)
 
 	defer pool.RemoveClient(clientID)
 
@@ -234,7 +230,7 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	userID := claims["sub"].(int)
+	userID := int(claims["sub"].(float64))
 	accessToken, err := generateToken(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

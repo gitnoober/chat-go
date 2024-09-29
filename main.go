@@ -123,7 +123,7 @@ func main() {
 		rl.Take()
 		HandleUser(w, r, svc)
 	})
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/online-users", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()
 		HandleGetAllActiveConn(pool, w, r, svc)
 	})

@@ -50,7 +50,7 @@ func validateJWT(tokenString string) (jwt.MapClaims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return token, nil
+		return jwtSecret, nil
 	})
 
 	if err != nil || !token.Valid {
@@ -61,6 +61,7 @@ func validateJWT(tokenString string) (jwt.MapClaims, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid claims")
 	}
+	log.Printf("Claims later part: %v", claims)
 
 	return claims, nil
 }
@@ -76,14 +77,13 @@ func generateToken(userID int) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-
 func generateRefreshToken(userID int) (string, error) {
-    claims := jwt.MapClaims{
-        "sub": userID,
-        "iat": time.Now().Unix(),
-        "exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
-    }
+	claims := jwt.MapClaims{
+		"sub": userID,
+		"iat": time.Now().Unix(),
+		"exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
+	}
 
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    return token.SignedString(jwtSecret)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
 }
