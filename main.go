@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/gitnoober/chat-go/config"
+	"github.com/gitnoober/chat-go/service"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -62,7 +65,7 @@ func (pool *Pool) SendMessage(ReceiverID string, message string) error {
 
 	receiver, ok := pool.clients[ReceiverID]
 	if !ok{
-		fmt.Errorf("client not found: %s", ReceiverID)
+		fmt.Printf("client not found: %s", ReceiverID)
 	}
 	w, err := receiver.Conn.Writer(ctx, websocket.MessageText)
 	if err != nil {
@@ -99,6 +102,42 @@ func validateJWT(tokenString string) (jwt.MapClaims, error) {
 	return claims, nil
 }
 
+// Validate JWT token and return hardcoded claims for testing purposes
+func validateTestJWT(tokenString string) (jwt.MapClaims, error) {
+	// Hardcoded claims for testing
+	// hardcodedClaims := jwt.MapClaims{
+	// 	"sub":  "user123",         // User ID
+	// 	"name": "John Doe",        // User's name
+	// 	"iat":  time.Now().Unix(), // Issued at timestamp
+	// 	"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
+	// }
+	log.Println("Token string:", tokenString)
+
+	// Simulating validation of the token (you can skip the actual check here)
+	if tokenString == "valid_token" { // Use a placeholder for a valid token check
+		hardcodedClaims := jwt.MapClaims{
+			"sub":  "user123",         // User ID
+			"name": "John Doe",        // User's name
+			"iat":  time.Now().Unix(), // Issued at timestamp
+			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
+		}
+		log.Println("Hardcoded claims:", hardcodedClaims)
+		return hardcodedClaims, nil
+	} 
+	if tokenString == "valid_string2"{
+		hardcodedClaims := jwt.MapClaims{
+			"sub":  "user1234",         // User ID
+			"name": "Jon Winslow",        // User's name
+			"iat":  time.Now().Unix(), // Issued at timestamp
+			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
+		}
+		log.Println("Hardcoded claims:", hardcodedClaims)
+		return hardcodedClaims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
+}
+
 // Splitmessage
 func splitMessage(message string) []string{
 	var parts[]string
@@ -120,7 +159,11 @@ func splitMessage(message string) []string{
 // Handle incoming websocket connections
 func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 	tokenString := r.URL.Query().Get("token")
-	claims, err := validateJWT(tokenString)
+	// Log the connection request
+	log.Printf("Received WebSocket connection request with token: %s", tokenString)
+	
+	// claims, err := validateJWT(tokenString)
+	claims, err := validateTestJWT(tokenString)
 	if err != nil{
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -144,7 +187,7 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 	log.Printf("Client connected: %s", clientID)
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
 		defer cancel()
 
 		// Read the message from the client
@@ -160,6 +203,8 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 			log.Printf("Error reading message: %v", err)
 			break
 		}
+
+		// log.Println("Received message:", string(message))
 		
 		// Assume the message format is "receiverID:message"
 		parts := splitMessage(string(message))
@@ -176,10 +221,28 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 	}
 }
 
+
 func main(){
+	// Capture connection properties
+	var db *sql.DB
+
+
+	cfg := config.LoadConfig()
+
+	_, err := config.ConnectMysql(cfg, db)
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	svc := service.NewService(db)
+
+
 	pool := newPool()
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		handleWebSocket(pool, w, r)
+	})
+	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		handleUser(w, r, svc)
 	})
 
 	srv := &http.Server{
