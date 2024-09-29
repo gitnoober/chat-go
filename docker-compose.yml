@@ -1,0 +1,30 @@
+services:
+  db:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: test
+      MYSQL_USER: newuser
+      MYSQL_PASSWORD: newpassword
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  chat-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_USER: newuser
+      MYSQL_PASSWORD: newpassword
+      MYSQL_DATABASE: test
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy

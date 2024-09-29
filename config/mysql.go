@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -18,11 +20,11 @@ type DBConfig struct {
 
 func loadDBConfig() *DBConfig {
 	return &DBConfig{
-		Username: "root",
-		Password: "123456",
+		Username: os.Getenv("MYSQL_USER"),
+		Password: os.Getenv("MYSQL_PASSWORD"),
 		Net:      "tcp",
-		Addr:     "127.0.0.1:3306",
-		DBName:   "test",
+		Addr:     "db:3306",
+		DBName:   os.Getenv("MYSQL_DATABASE"),
 	}
 }
 
@@ -40,15 +42,23 @@ func ConnectMysql(
 
 	// Get a database handle
 	var err error
-	db, err = sql.Open("mysql", mysqlConfig.FormatDSN())
-	if err != nil {
-		log.Fatalf("Error encountered while loading database: %v", err)
-	}
+	dsn := mysqlConfig.FormatDSN()
 
-	pingErr := db.Ping()
-	if pingErr != nil {
-		log.Fatalf("Error encountered while pinging database: %v", pingErr)
+	for i := 0; i < 5; i++ {
+		db, err = sql.Open("mysql", dsn)
+		if err != nil {
+			log.Printf("Error encountered while loading database: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		if err = db.Ping(); err == nil {
+			log.Println("Successfully connected to the database")
+			return db, nil
+		}
+
+		log.Printf("Failed to ping database: %v", err)
+		time.Sleep(2 * time.Second)
 	}
-	fmt.Printf("Connected to DB!")
-	return db, nil
+	return nil, fmt.Errorf("could not connect to database after retries: %v", err)
 }

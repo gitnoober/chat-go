@@ -1,0 +1,14 @@
+# Ignore the vendor directory
+chat-go
+
+# Ignore Go binary files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Ignore any other files you don't want in the container
+*.log
+*.tmp

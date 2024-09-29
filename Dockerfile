@@ -1,5 +1,5 @@
 # Use the official Golang image as a build stage
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -12,7 +12,9 @@ RUN go mod download
 COPY . .
 
 # Build the Go application
-RUN go build -o chat-go
+RUN go build -o main .
+
+RUN ls -la
 
 # Use a minimal image for the final stage
 FROM alpine:latest
@@ -21,10 +23,10 @@ FROM alpine:latest
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/chat-go .
+COPY --from=builder /app/main .
 
 # Expose the port the app runs on (adjust if needed)
 EXPOSE 8080
 
 # Run the application
-CMD ["./chat-go"]
+CMD ["./main"]
