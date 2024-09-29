@@ -22,25 +22,25 @@ var jwtSecret = []byte("secret-key") // TOOD: Move this somewhere else
 
 // Client represents a websocket client
 type Client struct {
-	ID string
+	ID   string
 	Conn *websocket.Conn
 }
 
 // Pool manages all active connections
 type Pool struct {
 	clients map[string]*Client
-	mu sync.Mutex
+	mu      sync.Mutex
 }
 
 // Create a new Pool
-func newPool() *Pool{
+func newPool() *Pool {
 	return &Pool{
 		clients: make(map[string]*Client),
 	}
 }
 
 // Add a new client to Pool
-func (pool *Pool) AddClient(client *Client){
+func (pool *Pool) AddClient(client *Client) {
 	pool.mu.Lock()
 
 	defer pool.mu.Unlock()
@@ -49,7 +49,7 @@ func (pool *Pool) AddClient(client *Client){
 }
 
 // Remove a client from the Pool
-func (pool *Pool) RemoveClient(clientID string){
+func (pool *Pool) RemoveClient(clientID string) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	delete(pool.clients, clientID)
@@ -64,7 +64,7 @@ func (pool *Pool) SendMessage(ReceiverID string, message string) error {
 	defer cancel()
 
 	receiver, ok := pool.clients[ReceiverID]
-	if !ok{
+	if !ok {
 		fmt.Printf("client not found: %s", ReceiverID)
 	}
 	w, err := receiver.Conn.Writer(ctx, websocket.MessageText)
@@ -74,7 +74,7 @@ func (pool *Pool) SendMessage(ReceiverID string, message string) error {
 	defer w.Close()
 
 	// Write the message
-	if _, err := w.Write([]byte (message)); err != nil {
+	if _, err := w.Write([]byte(message)); err != nil {
 		return fmt.Errorf("error sending message: %v", err)
 	}
 
@@ -116,19 +116,19 @@ func validateTestJWT(tokenString string) (jwt.MapClaims, error) {
 	// Simulating validation of the token (you can skip the actual check here)
 	if tokenString == "valid_token" { // Use a placeholder for a valid token check
 		hardcodedClaims := jwt.MapClaims{
-			"sub":  "user123",         // User ID
-			"name": "John Doe",        // User's name
-			"iat":  time.Now().Unix(), // Issued at timestamp
+			"sub":  "user123",                            // User ID
+			"name": "John Doe",                           // User's name
+			"iat":  time.Now().Unix(),                    // Issued at timestamp
 			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
 		}
 		log.Println("Hardcoded claims:", hardcodedClaims)
 		return hardcodedClaims, nil
-	} 
-	if tokenString == "valid_string2"{
+	}
+	if tokenString == "valid_string2" {
 		hardcodedClaims := jwt.MapClaims{
-			"sub":  "user1234",         // User ID
-			"name": "Jon Winslow",        // User's name
-			"iat":  time.Now().Unix(), // Issued at timestamp
+			"sub":  "user1234",                           // User ID
+			"name": "Jon Winslow",                        // User's name
+			"iat":  time.Now().Unix(),                    // Issued at timestamp
 			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
 		}
 		log.Println("Hardcoded claims:", hardcodedClaims)
@@ -139,11 +139,11 @@ func validateTestJWT(tokenString string) (jwt.MapClaims, error) {
 }
 
 // Splitmessage
-func splitMessage(message string) []string{
-	var parts[]string
+func splitMessage(message string) []string {
+	var parts []string
 	splitIdx := -1
 	for i, r := range message {
-		if r == ':'{
+		if r == ':' {
 			splitIdx = i
 			break
 		}
@@ -155,16 +155,15 @@ func splitMessage(message string) []string{
 	return parts
 }
 
-
 // Handle incoming websocket connections
-func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
+func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
 	tokenString := r.URL.Query().Get("token")
 	// Log the connection request
 	log.Printf("Received WebSocket connection request with token: %s", tokenString)
-	
+
 	// claims, err := validateJWT(tokenString)
 	claims, err := validateTestJWT(tokenString)
-	if err != nil{
+	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -175,9 +174,9 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	clientID := claims["sub"].( string)
+	clientID := claims["sub"].(string)
 	client := &Client{
-		ID: clientID,
+		ID:   clientID,
 		Conn: conn,
 	}
 	pool.AddClient(client)
@@ -205,7 +204,7 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 		}
 
 		// log.Println("Received message:", string(message))
-		
+
 		// Assume the message format is "receiverID:message"
 		parts := splitMessage(string(message))
 		if len(parts) != 2 {
@@ -221,21 +220,18 @@ func handleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request){
 	}
 }
 
-
-func main(){
+func main() {
 	// Capture connection properties
 	var db *sql.DB
-
 
 	cfg := config.LoadConfig()
 
 	_, err := config.ConnectMysql(cfg, db)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	svc := service.NewService(db)
-
 
 	pool := newPool()
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -246,18 +242,18 @@ func main(){
 	})
 
 	srv := &http.Server{
-		Addr: ":8080",
+		Addr:         ":8080",
 		WriteTimeout: 10 * time.Second,
-		ReadTimeout: 10 * time.Second,
-		IdleTimeout: 120 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	// Channel to listen for interrupt signals
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 
-	go func(){
-		<- sigs
+	go func() {
+		<-sigs
 		log.Println("Received shutdown signal, shutting down gracefully.....")
 
 		// Create a context for shutdown

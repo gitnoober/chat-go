@@ -1,9 +1,8 @@
 package config
 
 type Config struct {
-	DBConfig      *DBConfig
+	DBConfig *DBConfig
 }
-
 
 func LoadConfig() *Config {
 	cfg := &Config{
