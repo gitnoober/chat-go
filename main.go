@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"go.uber.org/ratelimit"
+
 	"github.com/gitnoober/chat-go/config"
 	"github.com/gitnoober/chat-go/service"
 	"github.com/golang-jwt/jwt/v5"
@@ -168,10 +170,14 @@ func main() {
 	svc := service.NewService(db)
 
 	pool := newPool()
+
+	rl := ratelimit.New(100) // per second
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		rl.Take()
 		HandleWebSocket(pool, w, r)
 	})
 	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		rl.Take()
 		HandleUser(w, r, svc)
 	})
 
