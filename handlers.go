@@ -199,3 +199,50 @@ func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+func HandleLogin(w http.ResponseWriter, r *http.Request) {
+	ID := r.URL.Query().Get("id")
+	userID, err := strconv.Atoi(ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	accessToken, err := generateToken(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	refreshToken, err := generateRefreshToken(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	response := map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.URL.Query().Get("refresh_token")
+	claims, err := validateJWT(refreshToken)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID := claims["sub"].(int)
+	accessToken, err := generateToken(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	response := map[string]string{
+		"access_token": accessToken,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

@@ -127,6 +127,14 @@ func main() {
 		rl.Take()
 		HandleGetAllActiveConn(pool, w, r, svc)
 	})
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		rl.Take()
+		HandleLogin(w, r)
+	})
+	http.HandleFunc("/refresh", func(w http.ResponseWriter, r *http.Request) {
+		rl.Take()
+		HandleRefreshToken(w, r)
+	})
 
 	srv := &http.Server{
 		Addr:         ":8080",

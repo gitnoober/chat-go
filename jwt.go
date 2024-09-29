@@ -75,3 +75,15 @@ func generateToken(userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
 }
+
+
+func generateRefreshToken(userID int) (string, error) {
+    claims := jwt.MapClaims{
+        "sub": userID,
+        "iat": time.Now().Unix(),
+        "exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
+    }
+
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(jwtSecret)
+}
