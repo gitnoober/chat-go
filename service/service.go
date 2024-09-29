@@ -27,7 +27,6 @@ type User struct {
 	ProfileURL string `json:"profile_url"`
 }
 
-
 // | Table | Create Table                                                                                                                                                                                                                                                                                                                       |
 // +-------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | users | CREATE TABLE `users` (
@@ -40,7 +39,6 @@ type User struct {
 //   UNIQUE KEY `idx_email` (`email`)
 // ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci |
 
-
 // CreateUser inserts a new user into the database
 func (s *Service) CreateUser(user User) error {
 	query := "INSERT INTO users (email, password, name, profile_url) VALUES (?, ?, ?, ?)"
@@ -52,7 +50,7 @@ func (s *Service) CreateUser(user User) error {
 }
 
 // GetUserByID retrieves a user by ID from the database
-func (s *Service) GetUserByID(userID string) (*User, error) {
+func (s *Service) GetUserByID(userID int) (*User, error) {
 	query := "SELECT id, email, password, name, profile_url FROM users WHERE id = ?"
 	row := s.mysqlDB.QueryRow(query, userID)
 

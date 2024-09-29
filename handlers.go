@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/coder/websocket"
@@ -29,8 +30,21 @@ func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		return
 	}
 
+	stringUserID := user.ID
+	intUserID, err := strconv.Atoi(stringUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	token, err := generateToken(intUserID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
 
 }
 
@@ -39,19 +53,14 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	tokenString := r.URL.Query().Get("token")
+	tokenString := r.Header.Get("Authorization")
 	claims, err := validateTestJWT(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	userID := claims["sub"].(string)
-
-	if userID == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
-		return
-	}
+	userID := claims["sub"].(int)
+	log.Printf("User ID: %d", userID)
 
 	// Get user from service
 	user, err := svc.GetUserByID(userID)
@@ -68,9 +77,12 @@ func getUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 func getAllActiveConn(pool *Pool, w http.ResponseWriter, svc *service.Service) {
 	pool.mu.Lock()
 
-	ids := make([]string, 0, len(pool.clients))
+	ids := make([]int, 0, len(pool.clients))
 	for id := range pool.clients {
-		ids = append(ids, id)
+		i, err := strconv.Atoi(id)
+		if err != nil {
+			ids = append(ids, i)
+		}
 	}
 	pool.mu.Unlock()
 
@@ -94,7 +106,7 @@ func HandleGetAllActiveConn(pool *Pool, w http.ResponseWriter, r *http.Request, 
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	tokenString := r.URL.Query().Get("token")
+	tokenString := r.Header.Get("Authorization")
 	claims, err := validateTestJWT(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -125,7 +137,7 @@ func HandleUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 
 // Handle incoming websocket connections
 func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
-	tokenString := r.URL.Query().Get("token")
+	tokenString := r.Header.Get("Authorization")
 	// Log the connection request
 	log.Printf("Received WebSocket connection request with token: %s", tokenString)
 

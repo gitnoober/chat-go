@@ -16,7 +16,6 @@ import (
 
 	"github.com/gitnoober/chat-go/config"
 	"github.com/gitnoober/chat-go/service"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 var jwtSecret = []byte("secret-key") // TOOD: Move this somewhere else
@@ -82,63 +81,6 @@ func (pool *Pool) SendMessage(ReceiverID string, message string) error {
 	return nil
 }
 
-// Validate JWT token and return claims
-func validateJWT(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return token, nil
-	})
-
-	if err != nil || !token.Valid {
-		return nil, fmt.Errorf("invalid token: %v", err)
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims")
-	}
-
-	return claims, nil
-}
-
-// Validate JWT token and return hardcoded claims for testing purposes
-func validateTestJWT(tokenString string) (jwt.MapClaims, error) {
-	// Hardcoded claims for testing
-	// hardcodedClaims := jwt.MapClaims{
-	// 	"sub":  "user123",         // User ID
-	// 	"name": "John Doe",        // User's name
-	// 	"iat":  time.Now().Unix(), // Issued at timestamp
-	// 	"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
-	// }
-	log.Println("Token string:", tokenString)
-
-	// Simulating validation of the token (you can skip the actual check here)
-	if tokenString == "valid_token" { // Use a placeholder for a valid token check
-		hardcodedClaims := jwt.MapClaims{
-			"sub":  "user123",                            // User ID
-			"name": "John Doe",                           // User's name
-			"iat":  time.Now().Unix(),                    // Issued at timestamp
-			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
-		}
-		log.Println("Hardcoded claims:", hardcodedClaims)
-		return hardcodedClaims, nil
-	}
-	if tokenString == "valid_string2" {
-		hardcodedClaims := jwt.MapClaims{
-			"sub":  "user1234",                           // User ID
-			"name": "Jon Winslow",                        // User's name
-			"iat":  time.Now().Unix(),                    // Issued at timestamp
-			"exp":  time.Now().Add(1 * time.Hour).Unix(), // Expiration timestamp
-		}
-		log.Println("Hardcoded claims:", hardcodedClaims)
-		return hardcodedClaims, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
-}
-
 // Splitmessage
 func splitMessage(message string) []string {
 	var parts []string
@@ -172,6 +114,7 @@ func main() {
 	pool := newPool()
 
 	rl := ratelimit.New(100) // per second
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()
 		HandleWebSocket(pool, w, r)
