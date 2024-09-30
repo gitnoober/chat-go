@@ -199,7 +199,7 @@ func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleLogin(w http.ResponseWriter, r *http.Request) {
+func HandleLogin(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	ID := r.URL.Query().Get("id")
 	userID, err := strconv.Atoi(ID)
 	if err != nil {
@@ -218,6 +218,13 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	rErr := addRefreshToken(refreshToken, svc)
+	if rErr != nil {
+		http.Error(w, rErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	response := map[string]string{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
@@ -226,13 +233,23 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+func HandleRefreshToken(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	refreshToken := r.URL.Query().Get("refresh_token")
 	claims, err := validateJWT(refreshToken)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	isUserAuth, rErr := validateRefreshToken(refreshToken, svc)
+	if rErr != nil {
+		http.Error(w, rErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !isUserAuth {
+		http.Error(w, "Unauthorized! Log in Again!", http.StatusUnauthorized)
+		return
+	}
+
 	userID := int(claims["sub"].(float64))
 	accessToken, err := generateToken(userID)
 	if err != nil {

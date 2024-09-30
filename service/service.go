@@ -1,20 +1,27 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type Service struct {
 	mysqlDB *sql.DB
+	redisDB *redis.Client
 }
 
 func NewService(
 	mysqlDB *sql.DB,
+	redisDB *redis.Client,
 ) *Service {
 
 	svc := &Service{
 		mysqlDB: mysqlDB,
+		redisDB: redisDB,
 	}
 	return svc
 }
@@ -78,4 +85,20 @@ func (s *Service) GetUserByEmail(email string) (int, error) {
 		return 0, fmt.Errorf("error retrieving user: %v", err)
 	}
 	return UserID, nil
+}
+
+func (s *Service) GetRedisData(key string) (string, error) {
+	val, err := s.redisDB.Get(context.Background(), key).Result()
+	if err != nil {
+		return "", fmt.Errorf("error getting data from redis: %v", err)
+	}
+	return val, nil
+}
+
+func (s *Service) SetRedisData(key, value string, expiration time.Duration) error {
+	err := s.redisDB.Set(context.Background(), key, value, expiration).Err()
+	if err != nil {
+		return fmt.Errorf("error setting data in redis: %v", err)
+	}
+	return nil
 }

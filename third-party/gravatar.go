@@ -1,19 +1,13 @@
 package thirdparty
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
-)
 
-// Generate MD5 hash of the email string
-func md5Hash(text string) string {
-	hash := md5.Sum([]byte(text))
-	return hex.EncodeToString(hash[:])
-}
+	utils "github.com/gitnoober/chat-go/utils"
+)
 
 // GetRandomProfilePicture fetches a random gravatar
 func GetRandomProfilePicture(email string) string {
-	hash := md5Hash(email)
+	hash := utils.GenerateMD5Hash(email)
 	return fmt.Sprintf("https://www.gravatar.com/avatar/%s?d=identicon", hash)
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/gitnoober/chat-go/service"
 )
 
-var jwtSecret = []byte("secret-key") // TOOD: Move this somewhere else
 
 // Client represents a websocket client
 type Client struct {
@@ -99,6 +98,28 @@ func splitMessage(message string) []string {
 	return parts
 }
 
+var jwtSecret []byte
+
+func init() {
+    // Load the .env file
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatalf("Error loading .env file: %v", err)
+    }
+
+    // Set jwtSecret from environment variable
+    secret := os.Getenv("JWT_SECRET")
+    if secret == "" {
+        log.Fatalf("JWT_SECRET environment variable not set")
+    }
+    jwtSecret = []byte(secret)
+
+	gravatarSecret := os.Getenv("GRAVATAR_ACCESS_KEY")
+	if gravatarSecret == "" {
+		log.Fatalf("GRAVATAR_ACCESS_KEY environment variable not set")
+	}
+}
+
 func main() {
 	// Capture connection properties
 	var db *sql.DB
@@ -109,19 +130,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	svc := service.NewService(db)
+	redisDB := config.ConnectRedis(cfg)
+	svc := service.NewService(db, redisDB)
 
 	pool := newPool()
 
 	rl := ratelimit.New(100) // per second
-
-	e := godotenv.Load()
-	if e != nil {
-		log.Fatalf("Error loading .env file: %v", e)
-	}
-	accessKey := os.Getenv("GRAVATAR_ACCESS_KEY")
-	log.Println("Gravatar Access Key:", accessKey)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()
@@ -137,11 +151,11 @@ func main() {
 	})
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()
-		HandleLogin(w, r)
+		HandleLogin(w, r, svc)
 	})
 	http.HandleFunc("/refresh", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()
-		HandleRefreshToken(w, r)
+		HandleRefreshToken(w, r, svc)
 	})
 
 	srv := &http.Server{
