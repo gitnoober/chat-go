@@ -25,6 +25,9 @@ WORKDIR /app
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/main .
 
+# Dockerfile
+COPY .env /app/.env
+
 # Expose the port the app runs on (adjust if needed)
 EXPOSE 8080
 

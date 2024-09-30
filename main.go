@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/joho/godotenv"
 	"go.uber.org/ratelimit"
 
 	"github.com/gitnoober/chat-go/config"
@@ -114,6 +115,13 @@ func main() {
 	pool := newPool()
 
 	rl := ratelimit.New(100) // per second
+
+	e := godotenv.Load()
+	if e != nil {
+		log.Fatalf("Error loading .env file: %v", e)
+	}
+	accessKey := os.Getenv("GRAVATAR_ACCESS_KEY")
+	log.Println("Gravatar Access Key:", accessKey)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		rl.Take()

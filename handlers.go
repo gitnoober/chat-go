@@ -11,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/gitnoober/chat-go/service"
+	thirdparty "github.com/gitnoober/chat-go/third-party"
 )
 
 func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
@@ -23,6 +24,8 @@ func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+	profile_url := thirdparty.GetRandomProfilePicture(user.Email)
+	user.ProfileURL = profile_url
 
 	// Call the service to create the user
 	if err := svc.CreateUser(user); err != nil {

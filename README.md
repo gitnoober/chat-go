@@ -7,6 +7,7 @@ Made it for learning :alien:
 ## TODO :art:
 - Add In Memory store for auth flow
 - Add UTs
+- Add password verification check for login flow
 
 ## Features
 

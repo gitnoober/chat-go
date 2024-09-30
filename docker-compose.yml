@@ -19,6 +19,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       MYSQL_USER: newuser
       MYSQL_PASSWORD: newpassword
