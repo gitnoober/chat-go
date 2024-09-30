@@ -43,6 +43,7 @@ func ConnectMysql(
 	// Get a database handle
 	var err error
 	dsn := mysqlConfig.FormatDSN()
+	log.Println("Connecting to database with DSN:", dsn)
 
 	for i := 0; i < 5; i++ {
 		db, err = sql.Open("mysql", dsn)
