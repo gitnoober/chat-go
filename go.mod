@@ -16,5 +16,6 @@ require (
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
+	golang.org/x/crypto v0.27.0
 	gorm.io/gorm v1.25.7 // indirect
 )

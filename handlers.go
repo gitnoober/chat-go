@@ -12,6 +12,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/gitnoober/chat-go/service"
 	thirdparty "github.com/gitnoober/chat-go/third-party"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
@@ -26,6 +27,13 @@ func createUser(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	}
 	profile_url := thirdparty.GetRandomProfilePicture(user.Email)
 	user.ProfileURL = profile_url
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	user.Password = string(hashedPassword)
 
 	// Call the service to create the user
 	if err := svc.CreateUser(user); err != nil {
@@ -204,6 +212,23 @@ func HandleLogin(w http.ResponseWriter, r *http.Request, svc *service.Service) {
 	userID, err := strconv.Atoi(ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	password := r.URL.Query().Get("password")
+	if password == "" {
+		http.Error(w, "Password is required", http.StatusBadRequest)
+		return
+	}
+	user, uErr := svc.GetUserByID(userID)
+	if uErr != nil {
+		http.Error(w, "User not found", http.StatusUnauthorized)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
 
