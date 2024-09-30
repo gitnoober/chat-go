@@ -158,6 +158,11 @@ func main() {
 		HandleRefreshToken(w, r, svc)
 	})
 
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		healthCheckHandler(db, redisDB)
+	})
+
+
 	srv := &http.Server{
 		Addr:         ":8080",
 		WriteTimeout: 10 * time.Second,

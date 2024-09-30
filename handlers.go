@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/gitnoober/chat-go/service"
 	thirdparty "github.com/gitnoober/chat-go/third-party"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -290,4 +293,27 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request, svc *service.Ser
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func healthCheckHandler(db *sql.DB, redisDB *redis.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Check MySQL database connection
+		if err := db.Ping(); err != nil {
+			http.Error(w, fmt.Sprintf("Database unreachable: %v", err), http.StatusServiceUnavailable)
+			return
+		}
+
+		// Check Redis connection
+		if err := redisDB.Ping(context.Background()).Err(); err != nil {
+			http.Error(w, fmt.Sprintf("Redis unreachable: %v", err), http.StatusServiceUnavailable)
+			return
+		}
+
+		// All checks passed
+		duration := time.Since(start)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "OK - Database and Redis are reachable. Response time: %v", duration)
+	}
 }
