@@ -4,8 +4,7 @@
 This chat application server is built using Go and provides WebSocket connectivity for real-time communication between users. The application includes features such as user signup, JWT authentication, and a message routing system. It was created for learning purposes. :alien:
 
 ## TODO :art:
-- Add unit tests (UTs).
-- Add password verification checks for the login flow.
+- Add UTs.
 
 ## Features
 

@@ -208,10 +208,14 @@ func HandleWebSocket(pool *Pool, w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleLogin(w http.ResponseWriter, r *http.Request, svc *service.Service) {
-	ID := r.URL.Query().Get("id")
-	userID, err := strconv.Atoi(ID)
+	emailID := r.URL.Query().Get("email")
+	if emailID == "" {
+		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+	userID, err := svc.GetUserByEmail(emailID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
 
