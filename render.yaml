@@ -1,27 +1,28 @@
 services:
-  - name: chat-app
-    type: web
-    env: docker
+  - type: web
+    name: go-chat-app
+    runtime: docker
     dockerfilePath: ./Dockerfile
     envVars:
       - key: MYSQL_HOST
-        value: db
+        value: db  # The service name of the MySQL instance
       - key: MYSQL_USER
         value: newuser
       - key: MYSQL_PASSWORD
         value: newpassword
       - key: MYSQL_DATABASE
         value: test
-    buildCommand: ./build.sh
-    startCommand: ./start.sh
+      - key: PORT
+        value: 8080  # Application's port
+    buildCommand: ./build.sh  # Use your build.sh script
+    startCommand: ./start.sh  # Use your start.sh script
     autoDeploy: true
     dependsOn:
-      - name: db
-    
-  - name: db
-    type: web  # Render doesn't support "database" type, so treat it as "web"
-    env: docker
-    dockerfilePath: ""
+      - name: db  # Depends on the MySQL database service
+
+  - type: web
+    name: db  # MySQL service
+    runtime: docker
     image: mysql:latest
     envVars:
       - key: MYSQL_ROOT_PASSWORD
@@ -32,10 +33,8 @@ services:
         value: newuser
       - key: MYSQL_PASSWORD
         value: newpassword
-    autoDeploy: true
     disk:
       name: mysql-data
-      mountPath: /var/lib/mysql  # MySQL data directory
-    healthCheckPath: /health  # Custom health check if needed
+      mountPath: /var/lib/mysql  # Persisting MySQL data
     serviceDetails:
       port: 3306
