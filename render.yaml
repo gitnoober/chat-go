@@ -1,0 +1,38 @@
+services:
+  - name: db
+    type: database
+    plan: free
+    databaseName: test
+    starterCommand: ""
+    envVars:
+      - key: MYSQL_ROOT_PASSWORD
+        value: password
+      - key: MYSQL_USER
+        value: newuser
+      - key: MYSQL_PASSWORD
+        value: newpassword
+
+  - name: redis
+    type: redis
+    plan: free
+
+  - name: chat-app
+    type: web
+    env:
+      - key: MYSQL_USER
+        value: newuser
+      - key: MYSQL_PASSWORD
+        value: newpassword
+      - key: MYSQL_DATABASE
+        value: test
+    buildCommand: docker build -t chat-app .
+    startCommand: docker run -p 8080:8080 chat-app
+    dockerfilePath: ./Dockerfile
+    dependsOn:
+      - db
+    envVars:
+      - file: .env
+    healthCheckPath: /health
+
+networks:
+  - backend
