@@ -13,17 +13,14 @@ services:
       - key: MYSQL_DATABASE
         value: test
       - key: PORT
-        value: 8080  # Application's port
-    buildCommand: ./build.sh  # Use your build.sh script
-    startCommand: ./start.sh  # Use your start.sh script
+        value: 8080
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
     autoDeploy: true
-    dependsOn:
-      - name: db  # Depends on the MySQL database service
 
-  - type: web
-    name: db  # MySQL service
+  - type: web  # Change from 'database' to 'web' to allow Docker image
+    name: mysql-db
     runtime: docker
-    image: mysql:latest
     envVars:
       - key: MYSQL_ROOT_PASSWORD
         value: password
@@ -35,6 +32,5 @@ services:
         value: newpassword
     disk:
       name: mysql-data
-      mountPath: /var/lib/mysql  # Persisting MySQL data
-    serviceDetails:
-      port: 3306
+      mountPath: /var/lib/mysql
+    autoDeploy: true
