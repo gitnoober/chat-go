@@ -16,10 +16,11 @@ services:
     startCommand: ./start.sh
     autoDeploy: true
     dependsOn:
-      - db
+      - name: db
     
   - name: db
-    type: database
+    type: web  # Render doesn't support "database" type, so treat it as "web"
+    env: docker
     dockerfilePath: ""
     image: mysql:latest
     envVars:
@@ -31,12 +32,10 @@ services:
         value: newuser
       - key: MYSQL_PASSWORD
         value: newpassword
-    healthCheckPath: /
-    disk:
-      name: redis-data
-      mountPath: /data
-    startCommand: |
-      mysqladmin ping -h 127.0.0.1
     autoDeploy: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql  # MySQL data directory
+    healthCheckPath: /health  # Custom health check if needed
     serviceDetails:
       port: 3306
